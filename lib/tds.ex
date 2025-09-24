@@ -17,6 +17,7 @@ defmodule Tds do
   """
   alias Tds.Query
   alias Tds.Types.UUID
+  require Logger
 
   @timeout 5000
   @execution_mode :prepare_execute

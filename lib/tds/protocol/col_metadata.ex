@@ -23,9 +23,9 @@ defmodule Tds.Protocol.ColMetadata do
     process_columns(column_count, rest, [])
   end
 
-  defp process_columns(0, _rest, acc), do: Enum.reverse(acc)
+  def process_columns(0, _rest, acc), do: Enum.reverse(acc)
 
-  defp process_columns(
+  def process_columns(
          column_count,
          <<user_type::32-little, flags::16-little, data_type::8, rest::binary>>,
          acc
@@ -35,7 +35,7 @@ defmodule Tds.Protocol.ColMetadata do
   end
 
   # IMAGE data type
-  defp process_column(
+  def process_column(
          user_type,
          flags,
          0x22,
@@ -56,7 +56,7 @@ defmodule Tds.Protocol.ColMetadata do
     }
   end
 
-  defp decode_column_name(column_name) do
+  def decode_column_name(column_name) do
     column_name
     |> Tds.Encoding.UCS2.to_string()
   end

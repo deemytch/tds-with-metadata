@@ -25,4 +25,5 @@ defmodule Tds.Utils do
   @doc false
   def use_elixir_calendar_types?,
     do: Process.get(:use_elixir_calendar_types, false)
+
 end

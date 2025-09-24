@@ -36,7 +36,7 @@ defmodule Tds.Protocol.Token do
     end
   end
 
-  defp fixed_length(token) do
+  def fixed_length(token) do
     case token &&& 0b00001100 do
       0b0000_0000 -> 1
       0b0000_0100 -> 2

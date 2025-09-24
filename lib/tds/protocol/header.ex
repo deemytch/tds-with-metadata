@@ -104,7 +104,7 @@ defmodule Tds.Protocol.Header do
     end
   end
 
-  defp decode_type(type) when is_integer(type) do
+  def decode_type(type) when is_integer(type) do
     List.keyfind(
       @messages,
       type,
@@ -113,7 +113,7 @@ defmodule Tds.Protocol.Header do
     )
   end
 
-  defp decode_status(status) do
+  def decode_status(status) do
     snd_status = if(0x01 == (status &&& 0x01), do: :eom, else: :normal)
     msg_ignore = if(0x02 == (status &&& 0x02), do: :ignore)
 

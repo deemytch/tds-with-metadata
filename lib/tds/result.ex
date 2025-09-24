@@ -12,12 +12,13 @@ defmodule Tds.Result do
 
   @typedoc "The result of a database query."
   @type t :: %__MODULE__{
+          metadata: nil | list(),
           columns: nil | [String.t()],
           rows: nil | [[any()]],
           num_rows: integer
         }
 
-  defstruct columns: nil, rows: nil, num_rows: 0
+  defstruct metadata: [], columns: nil, rows: nil, num_rows: 0
 
   if Code.ensure_loaded?(Table.Reader) do
     defimpl Table.Reader, for: Tds.Result do

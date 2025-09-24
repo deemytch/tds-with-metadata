@@ -98,7 +98,7 @@ defmodule Tds.Protocol.Login7 do
     Tds.Messages.encode_packets(@packet_header, data)
   end
 
-  defp fixed_login(login) do
+  def fixed_login(login) do
     login.tds_version <>
       login.packet_size <>
       login.client_version <>
@@ -112,7 +112,7 @@ defmodule Tds.Protocol.Login7 do
       login.client_language_code_id
   end
 
-  defp encode_variable_login(login, start_offset) do
+  def encode_variable_login(login, start_offset) do
     current_offset = start_offset
 
     # Hostname
@@ -186,7 +186,7 @@ defmodule Tds.Protocol.Login7 do
     {variable_login, offsets}
   end
 
-  defp encode_tds_password(list) do
+  def encode_tds_password(list) do
     for <<b::4, a::4 <- list>> do
       <<c>> = <<a::size(4), b::size(4)>>
       Bitwise.bxor(c, 0xA5)
@@ -196,7 +196,7 @@ defmodule Tds.Protocol.Login7 do
 
   # Return the current pid
   # If that fails return a "default" pid
-  defp pid! do
+  def pid! do
     value =
       self()
       |> :erlang.pid_to_list()

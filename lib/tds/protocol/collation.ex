@@ -96,11 +96,11 @@ defmodule Tds.Protocol.Collation do
 
   for {name, ids} <- @sort_ids do
     for id <- ids do
-      defp decode_sortid(unquote(id)), do: unquote(name)
+      def decode_sortid(unquote(id)), do: unquote(name)
     end
   end
 
-  defp decode_sortid(_id), do: nil
+  def decode_sortid(_id), do: nil
 
   @lcids %{
     "WINDOWS-874" => [0x0041E],
@@ -196,9 +196,9 @@ defmodule Tds.Protocol.Collation do
 
   for {key, ids} <- @lcids do
     for id <- ids do
-      defp decode_lcid(unquote(id)), do: unquote(key)
+      def decode_lcid(unquote(id)), do: unquote(key)
     end
   end
 
-  defp decode_lcid(_id), do: nil
+  def decode_lcid(_id), do: nil
 end

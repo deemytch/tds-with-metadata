@@ -151,12 +151,14 @@ defmodule Tds.Messages do
   def parse(:executing, packet_data, s) do
     packet_data
     |> decode_tokens()
+    # |> IO.inspect(label: "decoded tokens", pretty: true, width: 145)
     |> Enum.reduce({msg_result(set: [], params: [], status: 0), nil, s}, fn
       {:envchange, env}, {m, c, s} ->
         {m, c, on_envchange(env, s)}
 
       {:colmetadata, colmetadata}, {msg_result() = m, _, s} ->
         curr = %Tds.Result{
+          metadata: colmetadata,
           columns: transform(colmetadata, :name),
           rows: [],
           num_rows: 0

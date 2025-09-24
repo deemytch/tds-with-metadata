@@ -86,7 +86,7 @@ defmodule Tds.Protocol.Prelogin do
     Tds.Messages.encode_packets(@packet_header, data)
   end
 
-  defp get_version do
+  def get_version do
     @version
     |> case do
       [major, minor, build] ->
@@ -102,7 +102,7 @@ defmodule Tds.Protocol.Prelogin do
   end
 
   # TODO: Add support for client certificates
-  defp encode_encryption(opts) do
+  def encode_encryption(opts) do
     data =
       case ssl?(opts) do
         :on ->
@@ -129,7 +129,7 @@ defmodule Tds.Protocol.Prelogin do
     {@encryption_token, data}
   end
 
-  # defp encode_instance(opts) do
+  # def encode_instance(opts) do
   #   # not working for some reason
   #   instance = Keyword.get(opts, :instance)
 
@@ -140,7 +140,7 @@ defmodule Tds.Protocol.Prelogin do
   #   end
   # end
 
-  defp encode_thread_id(_opts) do
+  def encode_thread_id(_opts) do
     pid_serial =
       self()
       |> inspect()
@@ -152,11 +152,11 @@ defmodule Tds.Protocol.Prelogin do
     {@thread_id_token, <<pid_serial::ulong()>>}
   end
 
-  defp encode_mars(_opts) do
+  def encode_mars(_opts) do
     {@mars_token, <<0x00>>}
   end
 
-  defp encode_fed_auth_required(_opts) do
+  def encode_fed_auth_required(_opts) do
     {@fed_auth_required_token, <<0x01>>}
   end
 
@@ -201,7 +201,7 @@ defmodule Tds.Protocol.Prelogin do
     end
   end
 
-  defp decode_tokens(
+  def decode_tokens(
          <<@version_token, offset::ushort(), length::ushort(), tail::binary>>,
          tokens,
          s
@@ -210,7 +210,7 @@ defmodule Tds.Protocol.Prelogin do
     decode_tokens(tail, tokens, s)
   end
 
-  defp decode_tokens(
+  def decode_tokens(
          <<@encryption_token, offset::ushort(), length::ushort(), tail::binary>>,
          tokens,
          s
@@ -219,7 +219,7 @@ defmodule Tds.Protocol.Prelogin do
     decode_tokens(tail, tokens, s)
   end
 
-  defp decode_tokens(
+  def decode_tokens(
          <<@instopt_token, offset::ushort(), length::ushort(), tail::binary>>,
          tokens,
          s
@@ -228,7 +228,7 @@ defmodule Tds.Protocol.Prelogin do
     decode_tokens(tail, tokens, s)
   end
 
-  defp decode_tokens(
+  def decode_tokens(
          <<@thread_id_token, offset::ushort(), length::ushort(), tail::binary>>,
          tokens,
          s
@@ -237,7 +237,7 @@ defmodule Tds.Protocol.Prelogin do
     decode_tokens(tail, tokens, s)
   end
 
-  defp decode_tokens(
+  def decode_tokens(
          <<@mars_token, offset::ushort(), length::ushort(), tail::binary>>,
          tokens,
          s
@@ -246,7 +246,7 @@ defmodule Tds.Protocol.Prelogin do
     decode_tokens(tail, tokens, s)
   end
 
-  defp decode_tokens(
+  def decode_tokens(
          <<@fed_auth_required_token, offset::ushort(), length::ushort(), tail::binary>>,
          tokens,
          s
@@ -255,7 +255,7 @@ defmodule Tds.Protocol.Prelogin do
     decode_tokens(tail, tokens, s)
   end
 
-  defp decode_tokens(
+  def decode_tokens(
          <<@nonce_opt_token, offset::ushort(), length::ushort(), tail::binary>>,
          tokens,
          s
@@ -264,7 +264,7 @@ defmodule Tds.Protocol.Prelogin do
     decode_tokens(tail, tokens, s)
   end
 
-  defp decode_tokens(
+  def decode_tokens(
          <<@terminator_token, tail::binary>>,
          tokens,
          _s
@@ -272,9 +272,9 @@ defmodule Tds.Protocol.Prelogin do
     {:ok, decode_data(Enum.reverse(tokens), tail, %__MODULE__{})}
   end
 
-  defp decode_data([], _, result), do: result
+  def decode_data([], _, result), do: result
 
-  defp decode_data([{key, _, length} | tokens], bin, m) do
+  def decode_data([{key, _, length} | tokens], bin, m) do
     <<data::binary-size(length), tail::binary>> = bin
 
     case key do
@@ -310,11 +310,11 @@ defmodule Tds.Protocol.Prelogin do
     end
   end
 
-  defp disconnect(message, s) do
+  def disconnect(message, s) do
     {:disconnect, Tds.Error.exception(message), s}
   end
 
-  defp ssl?(opts) do
+  def ssl?(opts) do
     case opts[:ssl] do
       nil ->
         :not_supported
