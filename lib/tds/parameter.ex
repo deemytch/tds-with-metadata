@@ -8,14 +8,23 @@ defmodule Tds.Parameter do
           direction: :input | :output,
           value: String.t() | nil,
           type: atom() | nil,
-          length: nil | integer
+          length: nil | integer,
+          flags: nil | integer,
+          usertype: integer,
+          ord: term(),
+          status: term()
         }
 
-  defstruct name: "",
+  defstruct :ord,
+            :status,
+            :flags,
+            :usertype,
+            name: "",
             direction: :input,
             value: "",
             type: nil,
             length: nil
+
 
   def option_flags(%__MODULE__{direction: direction, value: value}) do
     fByRefValue =
