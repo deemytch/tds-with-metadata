@@ -15,10 +15,10 @@ defmodule Tds.Parameter do
           status: term()
         }
 
-  defstruct :ord,
-            :status,
-            :flags,
-            :usertype,
+  defstruct ord: nil,
+            status: nil,
+            flags: nil,
+            usertype: nil,
             name: "",
             direction: :input,
             value: "",
