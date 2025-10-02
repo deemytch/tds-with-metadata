@@ -170,7 +170,9 @@ defmodule Tds.Types do
 
   def decode_info(<<data_type_code::unsigned-8, tail::binary>>)
       when is_map_key(@fixed_data_types, data_type_code) do
+    <<meta_flags::16, _::binary>> = tail
     {%{
+       meta_flags: meta_flags,
        data_type: :fixed,
        data_type_code: data_type_code,
        length: @fixed_data_types[data_type_code],
@@ -180,7 +182,10 @@ defmodule Tds.Types do
 
   def decode_info(<<user_type::unsigned-8, tail::binary>>)
       when user_type in @variable_data_types do
+    <<meta_flags::16, _::binary>> = tail
     def_type_info = %{
+      user_type: user_type,
+      meta_flags: meta_flags,
       data_type: :variable,
       data_type_code: user_type,
       sql_type: to_atom(user_type)
