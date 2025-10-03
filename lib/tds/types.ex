@@ -344,24 +344,22 @@ defmodule Tds.Types do
 
         {:ok, collation} = decode_collation(collation)
 
-        type_info =
-          def_type_info
-          |> Map.put(:collation, collation)
-          |> Map.put(:data_reader, :longlen)
-          |> Map.put(:length, length)
-
-        rest =
-          Enum.reduce(
+        {table_names, rest_1} = Enum.reduce(
             1..numparts,
-            rest,
-            fn _,
-               <<tsize::little-unsigned-16, _table_name::binary-size(tsize)-unit(16),
-                 next_rest::binary>> ->
-              next_rest
-            end
-          )
+            {[], rest},
+            fn(_, {table_names, <<tsize::little-unsigned-16, table_name::binary-size(tsize)-unit(16), next_rest::binary>>}) ->
+              {[UCS2.to_string(table_name)| table_names], next_rest}
+            end)
+            |> fn({table_names_rev, rest}) -> {:lists.reverse(table_names_rev), rest} end.()
 
-        {type_info, rest}
+        type_info = Map.merge(def_type_info, %{
+            collation: collation,
+            data_reader: :longlen,
+            length: length,
+            numparts: numparts,
+            table_names: table_names
+        })
+        {type_info, rest_1}
 
       user_type == @tds_data_type_image ->
         # TODO NumParts Reader
