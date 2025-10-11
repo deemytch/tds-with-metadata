@@ -365,21 +365,22 @@ defmodule Tds.Types do
         # TODO NumParts Reader
         <<length::little-unsigned-32, numparts::signed-8, rest::binary>> = tail
 
-        rest =
+        {table_names, rest} =
           Enum.reduce(
             1..numparts,
-            rest,
+            {[], rest},
             fn _,
-               <<tsize::little-unsigned-16, _table_name::binary-size(tsize)-unit(16),
-                 next::binary>> ->
-              next
-            end
-          )
+               {table_names, <<tsize::little-unsigned-16, table_name::binary-size(tsize)-unit(16), next_rest::binary>>} ->
+              {[UCS2.to_string(table_name)| table_names], next_rest}
+            end)
+          |> fn({table_names_rev, rest}) -> {:lists.reverse(table_names_rev), rest} end.()
 
-        type_info =
-          def_type_info
-          |> Map.put(:length, length)
-          |> Map.put(:data_reader, :longlen)
+        type_info = Map.merge(def_type_info, %{
+            length: length,
+            data_reader: :longlen,
+            numparts: numparts,
+            table_names: table_names
+        })
 
         {type_info, rest}
 
