@@ -1,5 +1,10 @@
 # Tds - MSSQL Driver for Elixir
 
+This is heavy modified version of original TDS driver.
+Main goal is to make driver to return metadata and binary answers from server.
+
+---
+
 [![Hex.pm](https://img.shields.io/hexpm/v/tds.svg)](https://hex.pm/packages/tds)
 ![Elixir TDS CI](https://github.com/elixir-ecto/tds/workflows/Elixir%20TDS%20CI/badge.svg)
 
