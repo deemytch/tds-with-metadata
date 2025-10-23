@@ -45,6 +45,7 @@ defmodule Tds.Tokens do
 
   def decode_tokens(<<token::unsigned-size(8), tail::binary>>, collmetadata) do
     {token_data, tail, collmetadata} =
+    try do
       case token do
         0x81 -> decode_colmetadata(tail, collmetadata)
         # 0xA5 -> decode_colinfo(tail, collmetadata)
@@ -66,15 +67,21 @@ defmodule Tds.Tokens do
         # 0xE4 -> decode_sessionstate(tail, collmetadata)
         # 0xED -> decode_sspi(tail, collmetadata)
         # 0xA4 -> decode_tablename(tail, collmetadata)
-        t -> raise_unsupported_token(t, collmetadata)
+        t -> raise "Unsupported token code #{t}"
       end
+    catch
+      :error, %RuntimeError{message: "Unsupported token code " <> token} ->
+        Logger.critical("Unsupported token #{inspect(token, base: :hex)} in Token Stream")
+        raise RuntimeError,
+              "Unsupported Token code #{inspect(token, base: :hex)} in Token Stream"
+
+      x, y ->
+        Logger.error("#{inspect x}; #{inspect y}")
+        Logger.error("#{inspect __STACKTRACE__, pretty: true}\n---")
+        Logger.error("decode_tokens #{inspect token, base: :hex}; colmeta: #{inspect collmetadata, base: :hex}")
+    end
 
     [token_data | decode_tokens(tail, collmetadata)]
-  end
-
-  defp raise_unsupported_token(token, _) do
-    raise RuntimeError,
-          "Unsupported Token code #{inspect(token, base: :hex)} in Token Stream"
   end
 
   defp decode_returnvalue(bin, collmetadata) do
@@ -521,15 +528,16 @@ defmodule Tds.Tokens do
     decode_columns(tail, n - 1, [column | acc])
   end
 
-  defp decode_column(<<_usertype::int32(), _flags::int16(), tail::binary>>) do
-    {info, tail} = Types.decode_info(tail)
-    {name, tail} = decode_column_name(tail)
+  defp decode_column(<<usertype::32-unsigned-little, flags::16-unsigned-little, tail::binary>>) do
+    {info, data_tail} = Types.decode_info(tail)
+    {name, next_tail} = decode_column_name(data_tail)
 
-    info =
-      info
-      |> Map.put(:name, name)
-
-    {info, tail}
+    { Map.merge(info, %{
+      name: name,
+      usertype: usertype,
+      flags: flags,
+      debug: tail
+      }), next_tail}
   end
 
   defp decode_column_name(<<length::int8(), name::binary-size(length)-unit(16), tail::binary>>) do

@@ -1,11 +1,13 @@
 defmodule Tds.Types do
   @moduledoc false
+  require Logger
 
   import Tds.BinaryUtils
   import Tds.Utils
 
   alias Tds.Encoding.UCS2
   alias Tds.Parameter
+  alias Tds.DefTypeInfo
 
   @year_1900_days :calendar.date_to_gregorian_days({1900, 1, 1})
   @secs_in_min 60
@@ -171,7 +173,7 @@ defmodule Tds.Types do
   def decode_info(<<data_type_code::unsigned-8, tail::binary>>)
       when is_map_key(@fixed_data_types, data_type_code) do
     <<meta_flags::16, _::binary>> = tail
-    {%{
+    {%DefTypeInfo{
        meta_flags: meta_flags,
        data_type: :fixed,
        data_type_code: data_type_code,
@@ -183,7 +185,7 @@ defmodule Tds.Types do
   def decode_info(<<user_type::unsigned-8, tail::binary>>)
       when user_type in @variable_data_types do
     <<meta_flags::16, _::binary>> = tail
-    def_type_info = %{
+    def_type_info = %DefTypeInfo{
       user_type: user_type,
       meta_flags: meta_flags,
       data_type: :variable,
@@ -193,14 +195,10 @@ defmodule Tds.Types do
 
     cond do
       user_type == @tds_data_type_daten ->
-        length = 3
-
-        type_info =
-          def_type_info
-          |> Map.put(:length, length)
-          |> Map.put(:data_reader, :bytelen)
-
-        {type_info, tail}
+        {%{def_type_info|
+          length: 3,
+          data_reader: :bytelen
+        }, tail}
 
       user_type in [
         @tds_data_type_timen,
@@ -208,29 +206,24 @@ defmodule Tds.Types do
         @tds_data_type_datetimeoffsetn
       ] ->
         <<scale::unsigned-8, rest::binary>> = tail
-
-        length =
+        length0 =
           cond do
             scale in [0, 1, 2] -> 3
             scale in [3, 4] -> 4
             scale in [5, 6, 7] -> 5
             true -> nil
           end
-
         length =
           case user_type do
-            @tds_data_type_datetime2n -> length + 3
-            @tds_data_type_datetimeoffsetn -> length + 5
-            _ -> length
+            @tds_data_type_datetime2n -> length0 + 3
+            @tds_data_type_datetimeoffsetn -> length0 + 5
+            _ -> length0
           end
-
-        type_info =
-          def_type_info
-          |> Map.put(:scale, scale)
-          |> Map.put(:length, length)
-          |> Map.put(:data_reader, :bytelen)
-
-        {type_info, rest}
+        {%{def_type_info|
+          scale: scale,
+          length: length,
+          data_reader: :bytelen
+          }, rest}
 
       user_type in [
         @tds_data_type_numericn,
@@ -242,15 +235,12 @@ defmodule Tds.Types do
           scale::unsigned-8,
           rest::binary
         >> = tail
-
-        type_info =
-          def_type_info
-          |> Map.put(:precision, precision)
-          |> Map.put(:scale, scale)
-          |> Map.put(:length, length)
-          |> Map.put(:data_reader, :bytelen)
-
-        {type_info, rest}
+        {%{def_type_info|
+          precision: precision,
+          scale: scale,
+          length: length,
+          data_reader: :bytelen
+        }, rest}
 
       user_type in [
         @tds_data_type_uniqueidentifier,
@@ -265,13 +255,10 @@ defmodule Tds.Types do
         @tds_data_type_varbinary
       ] ->
         <<length::little-unsigned-8, rest::binary>> = tail
-
-        type_info =
-          def_type_info
-          |> Map.put(:length, length)
-          |> Map.put(:data_reader, :bytelen)
-
-        {type_info, rest}
+        {%{def_type_info|
+          length: length,
+          data_reader: :bytelen
+          }, rest}
 
       user_type in [
         @tds_data_type_char,
@@ -279,23 +266,15 @@ defmodule Tds.Types do
       ] ->
         <<length::little-unsigned-8, collation::binary-5, rest::binary>> = tail
         {:ok, collation} = decode_collation(collation)
-
-        type_info =
-          def_type_info
-          |> Map.put(:length, length)
-          |> Map.put(:data_reader, :bytelen)
-          |> Map.put(:collation, collation)
-
-        {type_info, rest}
+        {%{def_type_info|
+          length: length,
+          data_reader: :bytelen,
+          collation: collation
+        }, rest}
 
       user_type == @tds_data_type_xml ->
-        {_schema_info, rest} = decode_schema_info(tail)
-
-        type_info =
-          def_type_info
-          |> Map.put(:data_reader, :plp)
-
-        {type_info, rest}
+        {schema_info, rest} = decode_schema_info(tail)
+        {%{def_type_info| schema_info: schema_info, data_reader: :plp}, rest}
 
       user_type in [
         @tds_data_type_bigvarchar,
@@ -305,17 +284,11 @@ defmodule Tds.Types do
       ] ->
         <<length::little-unsigned-16, collation::binary-5, rest::binary>> = tail
         {:ok, collation} = decode_collation(collation)
-
-        type_info =
-          def_type_info
-          |> Map.put(:collation, collation)
-          |> Map.put(
-            :data_reader,
-            if(length == 0xFFFF, do: :plp, else: :shortlen)
-          )
-          |> Map.put(:length, length)
-
-        {type_info, rest}
+        {%{def_type_info|
+          collation: collation,
+          data_reader: if(length == 0xFFFF, do: :plp, else: :shortlen),
+          length: length
+        }, rest}
 
       user_type in [
         @tds_data_type_bigvarbinary,
@@ -323,16 +296,10 @@ defmodule Tds.Types do
         @tds_data_type_udt
       ] ->
         <<length::little-unsigned-16, rest::binary>> = tail
-
-        type_info =
-          def_type_info
-          |> Map.put(
-            :data_reader,
-            if(length == 0xFFFF, do: :plp, else: :shortlen)
-          )
-          |> Map.put(:length, length)
-
-        {type_info, rest}
+        {%{def_type_info|
+          data_reader: if(length == 0xFFFF, do: :plp, else: :shortlen),
+          length: length
+          }, rest}
 
       user_type in [@tds_data_type_text, @tds_data_type_ntext] ->
         <<
@@ -341,7 +308,6 @@ defmodule Tds.Types do
           numparts::signed-8,
           rest::binary
         >> = tail
-
         {:ok, collation} = decode_collation(collation)
 
         {table_names, rest_1} = Enum.reduce(
@@ -351,20 +317,17 @@ defmodule Tds.Types do
               {[UCS2.to_string(table_name)| table_names], next_rest}
             end)
             |> fn({table_names_rev, rest}) -> {:lists.reverse(table_names_rev), rest} end.()
-
-        type_info = Map.merge(def_type_info, %{
+        {%{def_type_info|
             collation: collation,
             data_reader: :longlen,
             length: length,
             numparts: numparts,
             table_names: table_names
-        })
-        {type_info, rest_1}
+        }, rest_1}
 
       user_type == @tds_data_type_image ->
-        # TODO NumParts Reader
+        # TODO NumParts Reader, done
         <<length::little-unsigned-32, numparts::signed-8, rest::binary>> = tail
-
         {table_names, rest} =
           Enum.reduce(
             1..numparts,
@@ -374,25 +337,21 @@ defmodule Tds.Types do
               {[UCS2.to_string(table_name)| table_names], next_rest}
             end)
           |> fn({table_names_rev, rest}) -> {:lists.reverse(table_names_rev), rest} end.()
-
-        type_info = Map.merge(def_type_info, %{
+        {%{def_type_info|
             length: length,
             data_reader: :longlen,
             numparts: numparts,
             table_names: table_names
-        })
-
-        {type_info, rest}
+        }, rest}
 
       user_type == @tds_data_type_variant ->
-        <<length::signed-32, rest::binary>> = tail
-
-        type_info =
-          def_type_info
-          |> Map.put(:length, length)
-          |> Map.put(:data_reader, :variant)
-
-        {type_info, rest}
+        <<length::signed-32, nameLen, _colName::binary-size(nameLen)-unit(16), rest::binary>> = tail
+        IO.inspect length, base: :hex, label: "VARIANT length", limit: :infinity
+        IO.inspect rest, base: :hex, label: "VARIANT rest", limit: :infinity
+        {%{def_type_info|
+          length: length,
+          data_reader: :variant
+          }, rest}
     end
   end
 
@@ -467,13 +426,13 @@ defmodule Tds.Types do
           decode_date(data)
 
         data_type_code == @tds_data_type_timen ->
-          decode_time(data_info[:scale], data)
+          decode_time(data_info.scale, data)
 
         data_type_code == @tds_data_type_datetime2n ->
-          decode_datetime2(data_info[:scale], data)
+          decode_datetime2(data_info.scale, data)
 
         data_type_code == @tds_data_type_datetimeoffsetn ->
-          decode_datetimeoffset(data_info[:scale], data)
+          decode_datetimeoffset(data_info.scale, data)
 
         data_type_code == @tds_data_type_uniqueidentifier ->
           decode_uuid(:binary.copy(data))
@@ -503,7 +462,7 @@ defmodule Tds.Types do
           @tds_data_type_decimaln,
           @tds_data_type_numericn
         ] ->
-          decode_decimal(data_info[:precision], data_info[:scale], data)
+          decode_decimal(data_info.precision, data_info.scale, data)
 
         data_type_code == @tds_data_type_bitn ->
           data != <<0x00>>
@@ -602,6 +561,36 @@ defmodule Tds.Types do
   end
 
   # TODO Variant Types
+  def decode_data(%{data_reader: :variant}, tail) do
+    Logger.debug("VARIANT data #{inspect tail, pretty: false, base: :hex, binaries: :as_binaries, limit: :infinity, printable_limit: :infinity}")
+    << _userType::little-unsigned-32, varBaseType, varPropBytes, rest::binary >> = tail
+    case varPropBytes do
+      ## GUIDTYPE, BITTYPE, INT1TYPE, INT2TYPE, INT4TYPE, INT8TYPE, DATETIMETYPE, DATETIM4TYPE, FLT4TYPE, FLT8TYPE, MONEYTYPE, MONEY4TYPE, DATENTYPE
+      0 ->
+        << data::32-unsigned-little, rest1::binary >> = rest
+        {%{baseType: varBaseType, data: data}, rest1}
+
+      ## TIMENTYPE, DATETIME2NTYPE, DATETIMEOFFSETNTYPE
+      ## varProperties 1 byte specifying scale
+      1 ->
+        << scale, data::72-unsigned-little, rest1::binary >> = rest
+        {%{baseType: varBaseType, scale: scale, data: data}, rest1}
+
+      ## BIGVARBINARYTYPE, BIGBINARYTYPE
+      ##    varProperties 2 bytes specifying max length
+      ## NUMERICNTYPE, DECIMALNTYPE
+      ##    varProperties 1 byte for precision followed by 1 byte for scale
+      2 ->
+        << precision, scale, data::32, tail1::binary >> = rest
+        {%{baseType: varBaseType, precision: precision, scale: scale, data: data}, tail1}
+
+      ## BIGVARCHARTYPE, BIGCHARTYPE, NVARCHARTYPE, NCHARTYPE
+      ##    varProperties 5-byte COLLATION, followed by a 2-byte max length
+      7 ->
+        << collation::40-unsigned-little, maxLength::16-unsigned-little, data::binary-size(maxLength)-unit(8), tail1::binary >> = rest
+        {%{baseType: varBaseType, collation: collation, maxLength: maxLength, data: data}, tail1}
+    end
+  end
 
   def decode_data(%{data_reader: :plp}, <<
         @tds_plp_null::little-unsigned-64,
